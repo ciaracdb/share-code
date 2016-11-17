@@ -1,5 +1,9 @@
 extends layout
 
 block content
-  h1= title
-  p Welcome to #{title}
+    #editor
+    script(src='/node_modules/ace-builds/src/ace.js')
+    script(src='/javascripts/lib/ot-text.js')
+    script(src='/javascripts/lib/sharedb-client.js')
+    script(src='/javascripts/collaborative-editor.js')
+    script(src='/javascripts/main.js')

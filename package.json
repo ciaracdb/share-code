@@ -3,17 +3,30 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "node ./bin/www"
+    "start": "node ./bin/www",
+    "postinstall": "npm run browserify",
+    "browserify": "browserify node_modules/sharedb/lib/client/index.js --standalone ShareDB -o public/javascripts/lib/sharedb-client.js && browserify node_modules/ot-text/lib/index.js --standalone otText -o public/javascripts/lib/ot-text.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/ciaracdb/share-code.git"
   },
   "dependencies": {
     "ace-builds": "^1.2.5",
     "body-parser": "~1.15.1",
+    "browserchannel": "^2.0.0",
     "browserify": "^13.1.1",
+    "compression": "^1.6.2",
     "cookie-parser": "~1.4.3",
     "debug": "~2.2.0",
     "express": "~4.13.4",
+    "express-ws": "^2.0.0",
     "jade": "~1.11.0",
+    "jquery": "^3.1.1",
     "morgan": "~1.7.0",
-    "sharedb": "^1.0.0-beta.6"
+    "ot-text": "^1.0.1",
+    "sharedb": "^1.0.0-beta.6",
+    "sharedb-mongo": "^1.0.0-beta.3",
+    "websocket-json-stream": "0.0.3"
   }
 }
