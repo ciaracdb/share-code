@@ -3,10 +3,6 @@ function CollaborativeEditor(editorTag, socketURL) {
     // Ace Editor link and settings
     self.editor = ace.edit(editorTag);
     self.editor.setTheme("ace/theme/monokai");
-    self.editor.getSession().setMode("ace/mode/typescript");
-    self.editor.setOptions({
-        maxLines: 50
-    });
 
     // text documents are synchronized
     ShareDB.types.register(otText.type);
@@ -15,6 +11,7 @@ function CollaborativeEditor(editorTag, socketURL) {
     var socket = new WebSocket(socketURL);
     self.connection = new ShareDB.Connection(socket);
     self.aceDocument = self.editor.getSession().getDocument();
+    self.document = self.aceDocument;
     self.shareDocument = null;
     self.dontTriggerChange = true;
     self.savedLines = [];
@@ -39,6 +36,14 @@ function CollaborativeEditor(editorTag, socketURL) {
     });
 
     self.openDocument = function(documentName) {
+        switch(documentName.split('.').pop()) {
+            case 'java':
+                self.editor.getSession().setMode("ace/mode/java");
+                break;
+            default:
+                self.editor.getSession().setMode("ace/mode/javascript");
+        }
+
         self.dontTriggerChange = false;
         self.shareDocument = self.connection.get('code', documentName);
 
@@ -91,5 +96,4 @@ function CollaborativeEditor(editorTag, socketURL) {
             });
         });
     };
-
 }
