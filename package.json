@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "node ./bin/www",
+    "start": "nodemon ./bin/www",
     "postinstall": "npm run browserify",
     "browserify": "browserify node_modules/sharedb/lib/client/index.js --standalone ShareDB -o public/javascripts/lib/sharedb-client.js && browserify node_modules/ot-text/lib/index.js --standalone otText -o public/javascripts/lib/ot-text.js"
   },
@@ -28,5 +28,8 @@
     "sharedb": "^1.0.0-beta.6",
     "sharedb-mongo": "^1.0.0-beta.3",
     "websocket-json-stream": "0.0.3"
+  },
+  "devDependencies": {
+    "nodemon": "^1.11.0"
   }
 }

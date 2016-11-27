@@ -29,4 +29,24 @@ router.ws('/ws', function(ws, req) {
     });
 });
 
+router.post('/best-matching', function(req, res) {
+    if(!(req.body.type && req.body.method && req.body.calledMethods && req.body.className)) {
+        res.sendStatus(400);
+        return;
+    }
+
+    var encodedVector = [];
+    var inNames = ['Page.createContents', 'Page.performOk'];
+    var callablesNames = ['new', 'setText', 'setFont', 'getText'];
+    inNames.forEach(function(classMethod) {
+        encodedVector.push(classMethod == req.body.className+'.'+req.body.method ? 1 : 0);
+    });
+
+    callablesNames.forEach(function(method) {
+        encodedVector.push(req.body.calledMethods.indexOf(method) > -1 ? 1 : 0);
+    });
+
+    res.json(encodedVector);
+});
+
 module.exports = router;

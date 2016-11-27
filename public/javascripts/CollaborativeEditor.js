@@ -1,8 +1,33 @@
-function CollaborativeEditor(editorTag, socketURL) {
+// arg1 = HTML id attribute of the element which will contain the editor
+// arg2 = url of the websocket which use the ShareDB library
+function CollaborativeEditor(editorId, socketURL) {
     var self = this;
     // Ace Editor link and settings
-    self.editor = ace.edit(editorTag);
-    self.editor.setTheme("ace/theme/monokai");
+    self.editor = ace.edit(editorId);
+
+    self.setTheme = function(theme) {
+        self.editor.setTheme('ace/theme/'+theme);
+    };
+    self.setTheme('monokai');
+
+    // create autocomplete popup
+    if($('#autocomplete').length == 0)
+        $('body').append('<div id="autocomplete"><ul></ul></div>');
+
+    // insert autocomplete on click
+    $('#autocomplete').on('click', 'li', function(event) {
+        $('#autocomplete').hide();
+        self.editor.focus();
+        self.editor.insert($(this).data('value'));
+        var cursor = self.editor.getCursorPosition();
+        self.editor.gotoLine(cursor.row+1, cursor.column-1);
+        event.stopPropagation();
+    });
+
+    // Close autocomplete popup on click
+    $('#editor').on('click', function(event) {
+        $('#autocomplete').hide();
+    });
 
     // text documents are synchronized
     ShareDB.types.register(otText.type);
@@ -35,17 +60,31 @@ function CollaborativeEditor(editorTag, socketURL) {
         }
     });
 
-    self.openDocument = function(documentName) {
-        switch(documentName.split('.').pop()) {
-            case 'java':
-                self.editor.getSession().setMode("ace/mode/java");
-                break;
-            default:
-                self.editor.getSession().setMode("ace/mode/javascript");
-        }
+    // enable language syntaxe recognition and autocompletion
+    self.setAutocompleMode = function(mode) {
+        self.editor.getSession().setMode('ace/mode/' + mode);
+        var autcompleteHandler = AutcompleteHandlerFactory.create(mode);
+        self.document.on('change', function(e) {
+            if(!self.dontTriggerChange) {
+                autcompleteHandler.documentChanged(e, self.editor, function(suggestions) {
+                    if(suggestions.length > 0) {
+                        var cursorPosition = self.editor.renderer.$cursorLayer.getPixelPosition(self.editor.getCursorPosition());
+                        $('#autocomplete ul').html('');
+                        $.each(suggestions, function(index, suggestion) {
+                            $('#autocomplete ul').append('<li data-value="' + suggestion.autocomplete + '">' + suggestion.show + '</li>')
+                        });
+                        $('#autocomplete')
+                            .css({top: cursorPosition.top + 15 + 'px', left: cursorPosition.left + 50 + 'px'})
+                            .show();
+                    }
+                });
+            }
+        });
+    };
 
+    self.openDocument = function(collection, documentName) {
         self.dontTriggerChange = false;
-        self.shareDocument = self.connection.get('code', documentName);
+        self.shareDocument = self.connection.get(collection, documentName);
 
         // first subscription to bdd
         self.shareDocument.subscribe(function(err) {
