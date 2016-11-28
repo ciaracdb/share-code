@@ -20,7 +20,8 @@ function CollaborativeEditor(editorId, socketURL) {
         self.editor.focus();
         self.editor.insert($(this).data('value'));
         var cursor = self.editor.getCursorPosition();
-        self.editor.gotoLine(cursor.row+1, cursor.column-1);
+        var cursorMove = parseInt($(this).data('cursor-move'));
+        self.editor.gotoLine(cursor.row+1, cursor.column+cursorMove);
         event.stopPropagation();
     });
 
@@ -71,7 +72,7 @@ function CollaborativeEditor(editorId, socketURL) {
                         var cursorPosition = self.editor.renderer.$cursorLayer.getPixelPosition(self.editor.getCursorPosition());
                         $('#autocomplete ul').html('');
                         $.each(suggestions, function(index, suggestion) {
-                            $('#autocomplete ul').append('<li data-value="' + suggestion.autocomplete + '">' + suggestion.show + '</li>')
+                            $('#autocomplete ul').append('<li data-value="' + suggestion.autocomplete + '" data-cursor-move="' + suggestion.cursorMove + '">' + suggestion.show + '</li>')
                         });
                         $('#autocomplete')
                             .css({top: cursorPosition.top + 15 + 'px', left: cursorPosition.left + 50 + 'px'})
