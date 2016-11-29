@@ -35,17 +35,51 @@ router.post('/matrix', function(req, res) {
         return;
     }
 
-    res.json({
-        inMethodsNames: ['Page.createContents', 'Page.performOk'],
-        callableMethodsNames: ['new', 'setText', 'setFont', 'getText'],
-        matrix: [
-            '101110',
-            '101000',
-            '010001',
-            '101100',
-            '010101'
-        ]
-    });
+    if(req.body.type == 'Text') {
+        res.json({
+            inMethods: [{className: 'Page', name: 'createContents'}, {className: 'Page', name: 'performOk'}],
+            callableMethods: [
+                {name: 'new', type: 'Text', parameters: ''},
+                {name: 'setText', type: 'void', parameters: 'Text text'},
+                {name: 'setFont', type: 'void', parameters: 'Font font'},
+                {name: 'getText', type: 'Text', parameters: ''}
+            ],
+            matrix: [
+                '101110',
+                '101000',
+                '010001',
+                '101100',
+                '010101'
+            ]
+        });
+    } else {
+        res.sendStatus(404);
+    }
+});
+
+
+router.get('/methods', function(req, res) {
+    if(!req.query.type) {
+        res.sendStatus(400);
+        return;
+    }
+
+    if(req.query.type == 'Page') {
+        res.json([
+            {
+                name: 'createContents',
+                type: 'void',
+                parameters: '',
+                freq: 1
+            },
+            {
+                name: 'performOk',
+                type: 'void',
+                parameters: 'int arg1, boolean arg2',
+                freq: 0.5
+            }
+        ]);
+    }
 });
 
 module.exports = router;

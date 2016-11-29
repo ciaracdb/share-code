@@ -1,18 +1,79 @@
-function JavaAutocompleteHandler() {
+function JavaAutocompleteHandler(editor) {
     var self = this;
+    self.editor = editor;
+    self.document = editor.getSession().getDocument();
+    self.analyzer = new JavaAnalyzer(editor);
+    self.lastSuggestionUsed = null;
 
-    self.documentChanged = function(e, editor, callback) {
-        if(e.action == 'insert' && e.lines.join('\n') == '.') {
-            self.autocompleteMethod(editor, callback);
+    self.documentChanged = function(e, callback) {
+        var cursorPosition = self.editor.getCursorPosition();
+        var lineStart = self.document.getLine(cursorPosition.row).substring(0, cursorPosition.column);
+
+        var matches;
+        if(matches = lineStart.match(/.*this\.$/)) {
+            self.autocompleteVariableOrMethod('', callback, true);
+            console.log('this.');
+        } else if(matches = lineStart.match(/.*[\.|\s]+(\w+)\.(\w*)$/)) {
+            self.autocompleteMethodOf(matches[1], matches[2], callback);
+            console.log('method');
+        } else if(matches = lineStart.match(/.*[\.|\s]+(\w+)$/)) {
+            self.autocompleteVariableOrMethod(matches[1], callback);
+            console.log('variable');
+        } else {
+            callback([]);
         }
+    };
 
-        callback([]);
+    self.autocompleteVariableOrMethod = function(firstLetters, callback, removeThis) {
+        var suggestions = [];
+
+        var variablesList = self.analyzer.getVariablesList();
+        var methodsList = self.analyzer.getMethodsList();
+
+        var list = variablesList.concat(methodsList);
+
+        list.sort(function(a, b) {
+            if(a.name == self.lastSuggestionUsed) {
+                return -1;
+            } else if(b.name == self.lastSuggestionUsed) {
+                return 1;
+            } else {
+                return ((a.freq > b.freq) ? -1 : ((a.freq == b.freq) ? 0 : 1));
+            }
+        });
+
+        var currentMethod = self.analyzer.getCurrentMethod();
+
+        $.each(list, function(index, elem) {
+            if((removeThis && elem.name == 'this') || elem.name == currentMethod.name) {
+                return;
+            }
+            if(elem.name.substring(0, firstLetters.length) == firstLetters) {
+                if(elem.parameters != undefined) {
+                    suggestions.push({
+                        autocomplete: elem.name.substring(firstLetters.length) + '()',
+                        cursorMove: -1,
+                        show: elem.name + '(' + elem.parameters + ') : ' + elem.type,
+                        save: elem.name
+                    });
+                } else {
+                    suggestions.push({
+                        autocomplete: elem.name.substring(firstLetters.length),
+                        cursorMove: 0,
+                        show: elem.name + ' : ' + elem.type,
+                        save: elem.name
+                    });
+                }
+
+            }
+        });
+        callback(suggestions);
     };
 
 
-    self.autocompleteMethod = function(editor, callback) {
-        var analysis = self.analyzeDocument(editor);
-        self.encodeContext(analysis, function(encodedVector, inMethodsNames, callableMethodsNames, matrix) {
+    self.autocompleteMethodOf = function(varName, firstLetters, callback) {
+        var analysis = self.analyzer.analyzeVariable(varName);
+        self.encodeContext(analysis, function(encodedVector, inMethods, callableMethods, matrix) {
             // distances
             var indexOfLast1 = encodedVector.lastIndexOf('1');
             var callableMethodsWithDistances = [];
@@ -20,7 +81,7 @@ function JavaAutocompleteHandler() {
                 var incompleteVector1 = encodedVector.substring(0, indexOfLast1 + 1);
                 var incompleteVector2 = matrix[i].substring(0, indexOfLast1 + 1);
                 callableMethodsWithDistances[i] = {
-                    callableMethods: matrix[i].slice(inMethodsNames.length),
+                    callableMethods: matrix[i].slice(inMethods.length),
                     distance: Math.sqrt(self.hamming(incompleteVector1, incompleteVector2))
                 }
             }
@@ -38,8 +99,8 @@ function JavaAutocompleteHandler() {
                 for(var j = 0; j < k_neighboours[0].callableMethods.length; j++) {
                     if(!methods[j]) {
                         methods[j] = {
-                            callableMethod: callableMethodsNames[j],
-                            alreadyCalled: encodedVector[inMethodsNames.length+j] == '1',
+                            callableMethod: callableMethods[j],
+                            alreadyCalled: encodedVector[inMethods.length + j] == '1',
                             occurences: 0
                         };
                     }
@@ -59,16 +120,19 @@ function JavaAutocompleteHandler() {
 
             var suggestions = [];
             $.each(methods, function(index, method) {
-                var autocomplete;
-                if(method.callableMethod == 'new')
-                    autocomplete = ' = new '+analysis.type+'()';
-                else
-                    autocomplete = method.callableMethod.replace(/(\w+)\((.*)\)/, '$2')+'()';
-                suggestions.push({
-                    autocomplete: autocomplete,
-                    cursorMove: -1,
-                    show: method.callableMethod
-                });
+                if(method.callableMethod.name.substring(0, firstLetters.length) == firstLetters) {
+                    var autocomplete;
+                    if(method.callableMethod.name == 'new')
+                        autocomplete = ' = new ' + analysis.type + '()';
+                    else
+                        autocomplete = method.callableMethod.name + '()';
+                    suggestions.push({
+                        autocomplete: autocomplete.substring(firstLetters.length),
+                        cursorMove: -1,
+                        show: method.callableMethod.name + '(' + method.callableMethod.parameters + ') : ' + method.callableMethod.type,
+                        save: null
+                    });
+                }
             });
 
             callback(suggestions);
@@ -80,56 +144,19 @@ function JavaAutocompleteHandler() {
             function(data) {
                 var encodedVector = '';
 
-                $.each(data.inMethodsNames, function(index, classMethod) {
-                    encodedVector += (classMethod == analysis.className + '.' + analysis.method) ? '1' : '0';
+                $.each(data.inMethods, function(index, method) {
+                    if(method.className == analysis.className && method.name == analysis.method.name)
+                        encodedVector += '1';
+                    else
+                        encodedVector += '0';
                 });
 
-                $.each(data.callableMethodsNames, function(index, method) {
-                    encodedVector += (analysis.calledMethods.indexOf(method) > -1) ? '1' : '0';
+                $.each(data.callableMethods, function(index, method) {
+                    encodedVector += (analysis.calledMethodsNames.indexOf(method.name) > -1) ? '1' : '0';
                 });
 
-                callback(encodedVector, data.inMethodsNames, data.callableMethodsNames, data.matrix);
+                callback(encodedVector, data.inMethods, data.callableMethods, data.matrix);
             });
-    };
-
-    self.analyzeDocument = function(editor) {
-        var res = {};
-        var document = editor.getSession().getDocument();
-
-        // Classes
-        var code = document.getAllLines().join('\n');
-        res.className = code.match(/(extends)\s*(\w+)/).pop();
-
-        // Variable name
-        var cursorPosition = editor.getCursorPosition();
-        var lineStart = document.getLine(cursorPosition.row).substring(0, cursorPosition.column - 1);
-        var varName = lineStart.split(' ').pop().split('.').pop();
-
-        // variable method
-        var methodRegex = /\w+\s+(\w+)\s*\(.*\)\s*\n*\s*(\{)/g;
-        var result;
-        while(result = methodRegex.exec(code)) {
-            if(result.index < document.positionToIndex(cursorPosition)) {
-                res.method = result[1];
-            }
-        }
-
-        // variable type
-        var typeRegex = new RegExp('(\\w+)\\s+' + varName + '\\s*(;|=.+;)', '');
-        res.type = code.match(typeRegex)[1];
-
-        res.calledMethods = [];
-        var calledMethodRegex = new RegExp(varName + '\\.(\\w+)\\(.*\\)\s*;', 'g');
-        while(result = calledMethodRegex.exec(code)) {
-            res.calledMethods.push(result[1]);
-        }
-
-        var constructorRegex = new RegExp('\\s+' + varName + '\\s*=\\s*new\\s+.+;', '');
-        if(code.match(constructorRegex)) {
-            res.calledMethods.push('new');
-        }
-
-        return res;
     };
 
     self.hamming = function(str1, str2) {
@@ -139,5 +166,10 @@ function JavaAutocompleteHandler() {
         }
 
         return count;
-    }
+    };
+
+    self.accept = function(saved) {
+        if(saved)
+            self.lastSuggestionUsed = saved;
+    };
 }

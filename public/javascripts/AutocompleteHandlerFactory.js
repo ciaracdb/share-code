@@ -1,8 +1,8 @@
 var AutcompleteHandlerFactory = {
-    create: function(language) {
+    create: function(editor, language) {
         switch(language) {
             default:
-                return new JavaAutocompleteHandler();
+                return new JavaAutocompleteHandler(editor);
         }
     }
 };
