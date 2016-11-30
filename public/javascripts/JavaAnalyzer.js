@@ -5,7 +5,7 @@ function JavaAnalyzer(editor) {
 
     self.getVariablesList = function() {
         var code = self.document.getAllLines().join('\n');
-        var varRegex = /(\w+)\s+([a-zA-z0-9, ]+)(;|=.+;)/g;
+        var varRegex = /(\w+)\s+([a-zA-z0-9_, ]+)(;|=.+;)/g;
         var result;
         var variablesList = [{
             name: 'this',
@@ -93,7 +93,7 @@ function JavaAnalyzer(editor) {
         res.className = code.match(/(extends)\s*(\w+)/).pop();
 
         // method in which the variable is written
-        res.method = self.getCurrentMethod()
+        res.method = self.getCurrentMethod();
 
         res.calledMethodsNames = [];
         var calledMethodRegex = new RegExp(varName + '\\.(\\w+)\\(.*\\)\s*;', 'g');
