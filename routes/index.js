@@ -57,29 +57,4 @@ router.post('/matrix', function(req, res) {
     }
 });
 
-
-router.get('/methods', function(req, res) {
-    if(!req.query.type) {
-        res.sendStatus(400);
-        return;
-    }
-
-    if(req.query.type == 'Page') {
-        res.json([
-            {
-                name: 'createContents',
-                type: 'void',
-                parameters: '',
-                freq: 1
-            },
-            {
-                name: 'performOk',
-                type: 'void',
-                parameters: 'int arg1, boolean arg2',
-                freq: 0.5
-            }
-        ]);
-    }
-});
-
 module.exports = router;

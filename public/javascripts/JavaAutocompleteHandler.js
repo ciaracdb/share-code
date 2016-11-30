@@ -3,7 +3,7 @@ function JavaAutocompleteHandler(editor) {
     self.editor = editor;
     self.document = editor.getSession().getDocument();
     self.analyzer = new JavaAnalyzer(editor);
-    self.lastSuggestionUsed = null;
+    self.lastSuggestions = [];
 
     self.documentChanged = function(e, callback) {
         var cursorPosition = self.editor.getCursorPosition();
@@ -12,13 +12,10 @@ function JavaAutocompleteHandler(editor) {
         var matches;
         if(matches = lineStart.match(/.*this\.$/)) {
             self.autocompleteVariableOrMethod('', callback, true);
-            console.log('this.');
         } else if(matches = lineStart.match(/.*[\.|\s]+(\w+)\.(\w*)$/)) {
             self.autocompleteMethodOf(matches[1], matches[2], callback);
-            console.log('method');
         } else if(matches = lineStart.match(/.*[\.|\s]+(\w+)$/)) {
             self.autocompleteVariableOrMethod(matches[1], callback);
-            console.log('variable');
         } else {
             callback([]);
         }
@@ -32,13 +29,17 @@ function JavaAutocompleteHandler(editor) {
 
         var list = variablesList.concat(methodsList);
 
+        console.log(self.lastSuggestions);
         list.sort(function(a, b) {
-            if(a.name == self.lastSuggestionUsed) {
-                return -1;
-            } else if(b.name == self.lastSuggestionUsed) {
-                return 1;
-            } else {
+            var indexA = self.lastSuggestions.indexOf(a.name);
+            var indexB = self.lastSuggestions.indexOf(b.name);
+
+            if(indexA == -1 && indexB == -1) {
                 return ((a.freq > b.freq) ? -1 : ((a.freq == b.freq) ? 0 : 1));
+            } else if(indexA > -1 && indexB > -1) {
+                return indexA > indexB ? -1 : 1;
+            } else {
+                return indexA > -1 ? -1 : 1;
             }
         });
 
@@ -74,6 +75,10 @@ function JavaAutocompleteHandler(editor) {
     self.autocompleteMethodOf = function(varName, firstLetters, callback) {
         var analysis = self.analyzer.analyzeVariable(varName);
         self.encodeContext(analysis, function(encodedVector, inMethods, callableMethods, matrix) {
+            if(encodedVector == 'error') {
+                callback([]);
+                return;
+            }
             // distances
             var indexOfLast1 = encodedVector.lastIndexOf('1');
             var callableMethodsWithDistances = [];
@@ -140,6 +145,10 @@ function JavaAutocompleteHandler(editor) {
     };
 
     self.encodeContext = function(analysis, callback) {
+        if(!analysis.type) {
+            callback('error');
+            return;
+        }
         $.post('/matrix', {type: analysis.type},
             function(data) {
                 var encodedVector = '';
@@ -169,7 +178,12 @@ function JavaAutocompleteHandler(editor) {
     };
 
     self.accept = function(saved) {
-        if(saved)
-            self.lastSuggestionUsed = saved;
+        if(saved) {
+            if ((index = self.lastSuggestions.indexOf(saved)) > -1) {
+                self.lastSuggestions.splice(index, 1);
+            }
+
+            self.lastSuggestions.push(saved);
+        }
     };
 }
